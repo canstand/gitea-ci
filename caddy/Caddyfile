@@ -1,0 +1,23 @@
+{
+  log
+}
+
+git.{$MAIN_DOMAIN} {
+  tls internal
+  reverse_proxy gitea:3000
+}
+
+ci.{$MAIN_DOMAIN} {
+  tls internal
+  reverse_proxy drone:80
+  @websockets {
+    header Connection *Upgrade*
+    header Upgrade    websocket
+  }
+  reverse_proxy @websockets drone:80
+}
+
+ca.{$MAIN_DOMAIN} {
+  tls internal
+  acme_server
+}

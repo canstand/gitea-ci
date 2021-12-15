@@ -1,0 +1,137 @@
+version: "3.9"
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    container_name: caddy
+    restart: unless-stopped
+    environment:  
+      - MAIN_DOMAIN=${MAIN_DOMAIN:-example.com}
+      - TZ={TZ:Asia/Shanghai}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+      - $PWD/caddy/Caddyfile:/etc/caddy/Caddyfile
+      # - $PWD/site:/srv
+      - ${DATA_PATH:?err}/caddy/data:/data
+      - ${DATA_PATH:?err}/caddy/config:/config
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          memory: 64M
+    networks:
+      - public
+
+
+  gitea:
+    image: gitea/gitea:1-rootless
+    container_name: gitea
+    environment: 
+      - ROOT_URL=https://git.${MAIN_DOMAIN:?err}
+      - SSH_PORT=2222
+      - DB_TYPE=postgres
+      - DB_HOST=pgsql:5432
+      - DB_NAME=${POSTGRES_DB:-giteadb}
+      - DB_USER=${POSTGRES_USER:-gitea}
+    restart: unless-stopped
+    depends_on: 
+      - pgsql
+    ports:
+      - "2222:2222"
+    volumes: 
+      - ${DATA_PATH:?err}/gitea/data:/var/lib/gitea
+      - ${DATA_PATH:?err}/gitea/config:/etc/gitea
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+      - ${CACERT_PATH:?err}:/etc/ssl/certs/ca-certificates.crt:ro
+    networks:
+      - public
+      - private
+    dns:
+      - $INTERNAL_DNS
+      - $EXTERNAL_DNS
+
+  drone:
+    image: drone/drone:1
+    container_name: drone
+    expose:
+      - "80"
+    env_file: .env_drone
+    environment:
+      - DRONE_SERVER_HOST=ci.${MAIN_DOMAIN:?err}
+      - DRONE_SERVER_PROTO=https
+      - DRONE_GITEA_SERVER=https://git.${MAIN_DOMAIN:?err}
+      - DRONE_GIT_ALWAYS_AUTH=true
+      - DRONE_DATADOG_ENABLED=false
+    volumes:
+      - ${DATA_PATH:?err}/drone:/data
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+      - ${CACERT_PATH:?err}:/etc/ssl/certs/ca-certificates.crt:ro
+    depends_on: 
+      - gitea
+    networks:
+      - public
+    dns:
+      - $INTERNAL_DNS
+      - $EXTERNAL_DNS
+
+  runner:
+    image: drone/drone-runner-docker:1
+    container_name: cirunner
+    restart: unless-stopped
+    env_file: .env_drone
+    environment:
+      - DRONE_RPC_HOST=ci.${MAIN_DOMAIN:?err}
+      - DRONE_RPC_PROTO=https
+      - DRONE_RUNNER_CAPACITY=2
+      - DRONE_RUNNER_VOLUMES=${CACERT_PATH:?err}:/etc/ssl/certs/ca-certificates.crt
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+    networks:
+      - public
+    dns:
+      - $INTERNAL_DNS
+      - $EXTERNAL_DNS
+
+  pgsql:
+    image: postgres:${POSTGRES_VERSION:-12}-alpine
+    container_name: pgsql
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-giteadb}
+      - POSTGRES_USER=${POSTGRES_USER:-gitea}
+      - POSTGRES_PASSWORD_FILE=/run/secrets/POSTGRES_PASSWORD
+    secrets:
+      - POSTGRES_PASSWORD
+    volumes:
+      - ${DATA_PATH:?err}/postgresql/data:/var/lib/postgresql/data:rw
+    stop_grace_period: 1m
+    networks:
+      - private
+
+  data:
+    image: busybox
+    container_name: data
+    volumes:
+      - ${DATA_PATH:?err}/postgresql/data:/var/lib/postgresql/data:rw
+    networks:
+      - private
+
+# volumes:
+ 
+secrets:
+  POSTGRES_PASSWORD:
+    file: ./.POSTGRES_PASSWORD
+
+networks:
+  public:
+  private:
