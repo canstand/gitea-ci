@@ -35,12 +35,12 @@ caddy 是可选的。加入 caddy 作为反向代理的有两个原因：
   }
   ```
 * Caddy 本地证书的根证书路径及在各系统的安装方法见后面的 [FAQ](#faq)
-
+* 其它内部测试服务需要使用 https，可以指定 acme 协议端点为 https://ca.example.com/acme/local/directory [^1]
 
 ### gitea
 
 首次启动服务之后，需要访问 https://git.example.com/install 进行初始安装配置。注意事项或安全配置建议：
-* docker-compose.yml 中的环境变量配置**只影响首次启动**安装配置时显示的**默认值**。安装配置完成之后再修改，必须修改配置文件 `./data/gitea/config/app.ini`。
+* docker-compose.yml 中有意没有配置 GITEA__database__PASSWD 环境变量，留给用户在安装界面输入。安装配置完成之后要修改，要么增加同样格式的环境变量，要么直接修改配置文件 `./data/gitea/config/app.ini`。[^2]
 * 注意数据库相关配置
 * 注意 url 和 ssh 端口配置
 * 私有部署建议配置：
@@ -56,7 +56,7 @@ caddy 是可选的。加入 caddy 作为反向代理的有两个原因：
 
 
 ### droneci
-虽然 droneci 的开源版本（oss）功能受限，一般使用场景还是能对付的。不过因为版本 2 开始会提示注册，所以示例中默认使用 v1.x 。可根据需要选择使用官方的 2.x 版本，或者切换到更纯粹的社区分支版本 [woodpecker](https://github.com/woodpecker-ci)。
+虽然 droneci 的开源版本（oss）功能受限[^3]，一般使用场景还是能对付的。不过因为版本 2 开始会提示注册，所以示例中默认使用 v1.x 。可根据需要选择使用官方的 2.x 版本，或者切换到更纯粹的社区分支版本 [woodpecker](https://github.com/woodpecker-ci)。
 
 默认配置：
 * droneci 使用 gitea 的 oauth 认证登录。
@@ -83,7 +83,7 @@ caddy 是可选的。加入 caddy 作为反向代理的有两个原因：
   - 修改 .POSTGRES_PASSWORD 文件，指定 postgresql 的密码
 2. 启动 caddy
   - `docker-compose up -d caddy`，先启动 caddy
-  - 如果是内网部署并启用了本地证书服务，参考[如何安装和信任自签名证书](https://kompost.cn/posts/%E5%A6%82%E4%BD%95%E5%AE%89%E8%A3%85%E5%92%8C%E4%BF%A1%E4%BB%BB%E8%87%AA%E7%AD%BE%E5%90%8D%E8%AF%81%E4%B9%A6/)把 Caddy 生成的根证书安装到 docker host 系统中
+  - 如果是内网部署并启用了本地证书服务，参考[如何安装和信任自签名证书](https://kompost.cn/posts/install-and-trust-self-signed-cert/)把 Caddy 生成的根证书安装到 docker host 系统中
   - 完全关闭浏览器再重新打开，访问 https://ca.example.com 不会弹出证书警告，则证明根证书已安装好。
 3. 启动并配置 gitea
   - `docker-compose up -d gitea`，启动 gitea
@@ -139,3 +139,6 @@ NAS 上运行 git 服务对个人或小团队来说是非常有性价比的选�
   * Linux 下要安装到系统证书存储，不同发行版有所区别。
     以 alpine 为例：`apk add ca-certificates && cp root.crt /usr/local/share/ca-certificates/ && update-ca-certificates`
  
+ [^1]: https://caddyserver.com/docs/caddyfile/directives/acme_server#acme-server
+[^2]: https://docs.gitea.io/en-us/install-with-docker-rootless/#managing-deployments-with-environment-variables 
+[^3]: https://www.drone.io/enterprise/opensource/#features

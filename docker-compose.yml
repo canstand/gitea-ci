@@ -33,12 +33,14 @@ services:
     image: gitea/gitea:1-rootless
     container_name: gitea
     environment: 
-      - ROOT_URL=https://git.${MAIN_DOMAIN:?err}
-      - SSH_PORT=2222
-      - DB_TYPE=postgres
-      - DB_HOST=pgsql:5432
-      - DB_NAME=${POSTGRES_DB:-giteadb}
-      - DB_USER=${POSTGRES_USER:-gitea}
+      - GITEA__server__ROOT_URL=https://git.${MAIN_DOMAIN:?err}
+      - GITEA__server__SSH_DOMAIN=git.${MAIN_DOMAIN:?err}
+      - GITEA__server__DOMAIN=git.${MAIN_DOMAIN:?err}
+      - GITEA__server__SSH_PORT=2222
+      - GITEA__database__DB_TYPE=postgres
+      - GITEA__database__HOST=pgsql:5432
+      - GITEA__database__NAME=${POSTGRES_DB:-giteadb}
+      - GITEA__database__USER=${POSTGRES_USER:-gitea}
     restart: unless-stopped
     depends_on: 
       - pgsql
